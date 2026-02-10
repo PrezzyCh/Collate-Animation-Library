@@ -21,6 +21,7 @@ if GSAnimBlend then require("GSAnimBlend") end
 
 --Globals===========================================================================================
 
+local queue = {}
 local animSetTable = {}
 local CollateAnims = {} -- Used for class shinanegans
 CollateAnims.__index = CollateAnims
@@ -42,12 +43,20 @@ end
 --- Debugging function that prints out all identified animation sets.
 function CollateAnims.dbgPrintAllSets() 
     print("[========All Identified Anims=====]")
-    for index, value in pairs(animSetTable) do
+    for index in pairs(animSetTable) do
         print("|- " .. index)
     end
     print("[=================================]")
 end
 
+--- Prints the animation queue that will activate all anims.
+function CollateAnims.dbgPrintQueue()
+    print("[==============Queue==============]")
+    for index, value in pairs(queue) do
+        print("|- " .. index:getName())
+    end
+    print("[=================================]")
+end
 -- =================================================================================================
 -- Local Helpers
 -- =================================================================================================
@@ -72,21 +81,23 @@ local function setAnims(name, blendIn, blendOut)
     return result;
 end
 
--- Private version of `setPlayingSelect` that does not call resetPriority.
-local function resetAnim(anim, state, arr) 
-    anim:setPlaying(state and arr[anim])
-end
-
--- Resets the priority for the entire animation set
-local function resetSetPriority(arr)
-    for i in pairs(arr) do
-        arr[i] = true
+-- Resets the priority for all anims from the inputted table
+local function resetPriority(arr)
+    for key, value in pairs(arr) do
+        local animSet = animSetTable[value]
+        animSet.arr[key] = true
     end
 end
 
--- Resets the priority for a single animation
-local function resetPriority(setArr, anim)
-    setArr[anim] = true
+-- Plays all animations from the inputted table, checking their values.
+-- The inputted arr must be of <Animation, string> where string is the AnimationSet name
+local function playQueue(queue, animSetTable)
+    for anim, value in pairs(queue) do
+        local animSet = animSetTable[value]
+        if animSet.arr[anim] then
+            anim:play() --Play to just play it, prevents shinanegans with loops.
+        end
+    end
 end
 
 -- Checks if any of the animations in the animation set is playing
@@ -99,57 +110,36 @@ local function checkPlaying(setArr)
     return false
 end
 
---- Checks the priority of the two inputted animation by grabbing the anim set associated to
---- each animation and checking the priority of the set.
-local function modPriorities(animA, animB)
-    local animASetName = string.match(animA:getName(), "^(.-)_")
-    local animBSetName = string.match(animB:getName(), "^(.-)_")
-    local animSetTableA = animSetTable[animASetName]
-    local animSetTableB = animSetTable[animBSetName]
-    local animASetPriority = animSetTableA:getPriority()
-    local animBSetPriority = animSetTableB:getPriority()
-    
-    if animASetPriority > animBSetPriority then 
-        animSetTableB.arr[animB] = false
-        resetAnim(animB, animB:isPlaying(), animSetTableB.arr) -- Allows the animation to update
-    end
-    if animBSetPriority > animASetPriority then 
-        animSetTableA.arr[animA] = false
-        resetAnim(animA, animA:isPlaying(), animSetTableA.arr)
-    end
-end
-
 --- Checks the priority of each active animation and setting each `arr` to the according
 --- override.
 --- 
 --- Where if a priority is greater, then it will set the lower priority animation override to
 --- false. If priority is equal, both animations will play.
--- local function priorityCheck(arr) 
---     local allAnimsTbl = animations:getPlaying()
---     local currAnim = arr
---     for _, animB in ipairs(allAnimsTbl) do
---         local nameB = string.match(animB:getName(), "_(.-)$")
---         for animA in pairs(currAnim) do
---             local nameA = string.match(animA:getName(), "_(.-)$")
---             if (nameA == nameB) then
---                 modPriorities(animA, animB)
---             end
---         end
---     end
--- end
-
 function CollateAnims.priorityCheck() 
-    local allAnimsTbl = animations:getPlaying()
-    -- Goes through checking each animation to each.
-    for i = 1, #allAnimsTbl, 1 do
-        local animAName = string.match(allAnimsTbl[i]:getName(), "_(.-)$")
-        for j = i + 1, #allAnimsTbl, 1 do
-            local animBName = string.match(allAnimsTbl[j]:getName(), "_(.-)$")
-            if animAName == animBName then
-                modPriorities(allAnimsTbl[i], allAnimsTbl[j])
+    resetPriority(queue)
+    for animA, valueA in pairs(queue) do -- Contains the animations and the animation's AnimationSet name as value
+        local animAName = string.match(animA:getName(), "_(.-)$") --Gets the aftward name ie. armL or armR
+        for animB, valueB in pairs(queue) do
+            local animBName = string.match(animB:getName(), "_(.-)$")
+            if valueA ~= valueB and animAName == animBName then
+                local animSetA = animSetTable[valueA] --Gets the metatable thus the set itself
+                local animSetB = animSetTable[valueB]
+                local animAPriority = animSetA:getPriority()
+                local animBPriority = animSetB:getPriority()
+
+                if animAPriority > animBPriority then 
+                    animSetB.arr[animB] = false;
+                    animB:stop()
+                end
+                if animBPriority > animAPriority then 
+                    animSetA.arr[animA] = false;
+                    animA:stop()
+                end
             end
         end
-    end
+    end 
+    playQueue(queue, animSetTable)
+    queue = {} --Empties the queue
 end
 
 -- =================================================================================================
@@ -188,29 +178,29 @@ end
 --- priority overrides.
 --- @generic self
 --- @param state boolean
-function CollateAnims:setPlayingAnim(state) 
-    resetSetPriority(self.arr); -- Reset priority to the specified set 
-    for i, value in pairs(self.arr) do
-        i:setPlaying(state and value)
+function CollateAnims:setPlaying(state) 
+    if (state) then
+        for anim in pairs(self.arr) do
+            queue[anim] = self.name
+        end
+    else 
+        self:stop()
     end
-    --if state then priorityCheck(self.arr) end
 end
 
 --- Plays and the animation set.
 --- 
 --- The animation will play until the end of the animation.
 --- @generic self
-function CollateAnims:playAnim()
-    resetSetPriority(self.arr);
-    for i in pairs(self.arr) do
-        i:play()
+function CollateAnims:play()
+    for anim in pairs(self.arr) do
+        queue[anim] = self.name
     end
-    --priorityCheck(self.arr)
 end
 
 --- Stops the animation set.
 --- @generic self
-function CollateAnims:stopAnim()
+function CollateAnims:stop()
     for i in pairs(self.arr) do
         i:stop()
     end
@@ -222,11 +212,13 @@ end
 --- @generic self
 --- @param anim Animation
 --- @param state boolean
-function CollateAnims:setPlayingSelectAnim(anim, state)
-    -- Uses the animation
-    resetPriority(self.arr, anim)
-    anim:setPlaying(state and self.arr[anim])
-    --if state then priorityCheck(self.arr) end
+function CollateAnims:setPlayingSelect(anim, state)
+    --Add exception
+    if state then
+        queue[anim] = self.name
+    else 
+        anim:stop()
+    end
 end
 
 --- Plays a specific animation within an animation set.
@@ -234,10 +226,9 @@ end
 --- The animation will play until the end of the animation.
 --- @generic self
 --- @param anim Animation
-function CollateAnims:playSelectAnim(anim)
-    resetPriority(self.arr, anim);
-    anim:play()
-    --priorityCheck(self.arr)
+function CollateAnims:playSelect(anim)
+    --Add exception
+    queue[anim] = self.name
 end
 
 
@@ -294,5 +285,6 @@ end
 ---@field priority number 
 ---Contains the animation name as a key and the metatable of an AnimationSet.
 ---@field animSetTable table<string, metatable>
-
+---Contains the animation as the key and the string of the AnimationSet pertaining to the animation queued to play.
+---@field queue table<Animation, string>
 return CollateAnims
