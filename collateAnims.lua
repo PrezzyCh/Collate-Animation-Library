@@ -22,6 +22,7 @@ if GSAnimBlend then require("GSAnimBlend") end
 --Globals===========================================================================================
 
 local queue = {}
+local playingQueue = {}
 local animSetTable = {}
 local CollateAnims = {} -- Used for class shinanegans
 CollateAnims.__index = CollateAnims
@@ -60,6 +61,7 @@ end
 -- =================================================================================================
 -- Local Helpers
 -- =================================================================================================
+-- Grabs similar name animations and adds them to an animationSet tbl
 local function setAnims(name, blendIn, blendOut)
     local allAnimsTbl = animations:getAnimations()
     local result = {}
@@ -100,6 +102,16 @@ local function playQueue(queue, animSetTable)
     end
 end
 
+--Syncs a playing queue 
+local function syncQueue(playingQueue)
+    local playing = animations:getPlaying()
+    for _, anim in ipairs(playing) do
+        if playingQueue[anim] == null then
+            playingQueue[anim] = string.match(anim:getName(), "^(.-)_")
+        end
+    end
+end
+
 -- Checks if any of the animations in the animation set is playing
 local function checkPlaying(setArr)
     for i in pairs(setArr) do
@@ -110,16 +122,11 @@ local function checkPlaying(setArr)
     return false
 end
 
---- Checks the priority of each active animation and setting each `arr` to the according
---- override.
---- 
---- Where if a priority is greater, then it will set the lower priority animation override to
---- false. If priority is equal, both animations will play.
-function CollateAnims.priorityCheck() 
-    resetPriority(queue)
-    for animA, valueA in pairs(queue) do -- Contains the animations and the animation's AnimationSet name as value
+-- Checks queues, if overrriden, queueA will not be changed
+local function compareQueues(queueA, queueB, override)
+    for animA, valueA in pairs(queueA) do -- Contains the animations and the animation's AnimationSet name as value
         local animAName = string.match(animA:getName(), "_(.-)$") --Gets the aftward name ie. armL or armR
-        for animB, valueB in pairs(queue) do
+        for animB, valueB in pairs(queueB) do
             local animBName = string.match(animB:getName(), "_(.-)$")
             if valueA ~= valueB and animAName == animBName then
                 local animSetA = animSetTable[valueA] --Gets the metatable thus the set itself
@@ -129,22 +136,37 @@ function CollateAnims.priorityCheck()
 
                 if animAPriority > animBPriority then 
                     animSetB.arr[animB] = false;
-                    animB:stop()
+                    animB:stop() -- Stops animation if it's already playing
                 end
                 if animBPriority > animAPriority then 
-                    animSetA.arr[animA] = false;
-                    animA:stop()
+                    if not override then -- Prevents queueA from being changed
+                        animSetA.arr[animA] = false;
+                        animA:stop() 
+                    end
                 end
             end
         end
     end 
-    playQueue(queue, animSetTable)
-    queue = {} --Empties the queue
 end
 
 -- =================================================================================================
 -- Public Functions
 -- =================================================================================================
+
+--- Checks the priority of each active animation and setting each `arr` to the according
+--- override.
+--- 
+--- Where if a priority is greater, then it will set the lower priority animation override to
+--- false. If priority is equal, both animations will play.
+function CollateAnims.priorityCheck() 
+    resetPriority(queue)
+    syncQueue(playingQueue)
+    compareQueues(queue, queue) --Comparing to the rest of the animations
+    compareQueues(playingQueue, queue, true) --Comparing playing animations
+    playQueue(queue, animSetTable)
+    queue = {} --Empties the queue
+    playingQueue = {}
+end
 
 --- Creates a new animation set with the `name`, `priority`, and `blendIn`/`blendOut` 
 --- for GSAnimBlend blending.
