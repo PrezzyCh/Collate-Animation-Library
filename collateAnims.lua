@@ -33,9 +33,13 @@ CollateAnims.__index = CollateAnims
 -- Due to the beta this library is in, you are free to use these debug functions to help in the bug
 -- reporting process!
 
-function CollateAnims:dbgPrintArr() 
+--- Debugging function that prints out the state of the overrides of an animation set.
+--- Each override dictates whether an animation plays or not, where `true` indicates 
+--- an animation will play if called and will not if `false`.
+--- @generic self
+function CollateAnims:dbgPrintTbl() 
     print("[=======".. self.name .."=====]")
-    for i, value in pairs(self.arr) do
+    for i, value in pairs(self.tbl) do
         print(i:getName() .. " + " .. tostring(value))
     end
     print("[=================================]")
@@ -50,7 +54,8 @@ function CollateAnims.dbgPrintAllSets()
     print("[=================================]")
 end
 
---- Prints the animation queue that will activate all anims.
+--- Debugging function that prints out the animation queue of animations 
+--- that will be checked and played.
 function CollateAnims.dbgPrintQueue()
     print("[==============Queue==============]")
     for index, value in pairs(queue) do
@@ -84,42 +89,32 @@ local function setAnims(name, blendIn, blendOut)
 end
 
 -- Resets the priority for all anims from the inputted table
-local function resetPriority(arr)
-    for key, value in pairs(arr) do
+local function resetPriority(tbl)
+    for key, value in pairs(tbl) do
         local animSet = animSetTable[value]
-        animSet.arr[key] = true
+        animSet.tbl[key] = true
     end
 end
 
 -- Plays all animations from the inputted table, checking their values.
--- The inputted arr must be of <Animation, string> where string is the AnimationSet name
+-- The inputted tbl must be of <Animation, string> where string is the AnimationSet name
 local function playQueue(queue, animSetTable)
     for anim, value in pairs(queue) do
         local animSet = animSetTable[value]
-        if animSet.arr[anim] then
+        if animSet.tbl[anim] then
             anim:play() --Play to just play it, prevents shinanegans with loops.
         end
     end
 end
 
---Syncs a playing queue 
+--Syncs a playing queue with animations that are currently playing
 local function syncQueue(playingQueue)
     local playing = animations:getPlaying()
     for _, anim in ipairs(playing) do
-        if playingQueue[anim] == null then
+        if playingQueue[anim] == nil then
             playingQueue[anim] = string.match(anim:getName(), "^(.-)_")
         end
     end
-end
-
--- Checks if any of the animations in the animation set is playing
-local function checkPlaying(setArr)
-    for i in pairs(setArr) do
-        if i:isPlaying() then
-            return true
-        end
-    end
-    return false
 end
 
 -- Checks queues, if overrriden, queueA will not be changed
@@ -135,12 +130,12 @@ local function compareQueues(queueA, queueB, override)
                 local animBPriority = animSetB:getPriority()
 
                 if animAPriority > animBPriority then 
-                    animSetB.arr[animB] = false;
+                    animSetB.tbl[animB] = false;
                     animB:stop() -- Stops animation if it's already playing
                 end
                 if animBPriority > animAPriority then 
                     if not override then -- Prevents queueA from being changed
-                        animSetA.arr[animA] = false;
+                        animSetA.tbl[animA] = false;
                         animA:stop() 
                     end
                 end
@@ -153,7 +148,7 @@ end
 -- Public Functions
 -- =================================================================================================
 
---- Checks the priority of each active animation and setting each `arr` to the according
+--- Checks the priority of each active animation and setting each `tbl` to the according
 --- override.
 --- 
 --- Where if a priority is greater, then it will set the lower priority animation override to
@@ -185,7 +180,7 @@ function CollateAnims:newSet(name, priority, blendIn, blendOut)
     end
     local metaTable = setmetatable({name = name, -- String name of set
                                     priority = priority, -- Int priority of set
-                                    arr = setAnims(name, blendIn, blendOut)}, -- All anims of this 
+                                    tbl = setAnims(name, blendIn, blendOut)}, -- All anims of this 
                                                     --set, where [Animation key, Boolean override] 
                                     self)
     animSetTable[name] = metaTable
@@ -202,7 +197,7 @@ end
 --- @param state boolean
 function CollateAnims:setPlaying(state) 
     if (state) then
-        for anim in pairs(self.arr) do
+        for anim in pairs(self.tbl) do
             queue[anim] = self.name
         end
     else 
@@ -215,7 +210,7 @@ end
 --- The animation will play until the end of the animation.
 --- @generic self
 function CollateAnims:play()
-    for anim in pairs(self.arr) do
+    for anim in pairs(self.tbl) do
         queue[anim] = self.name
     end
 end
@@ -223,7 +218,7 @@ end
 --- Stops the animation set.
 --- @generic self
 function CollateAnims:stop()
-    for i in pairs(self.arr) do
+    for i in pairs(self.tbl) do
         i:stop()
     end
 end
@@ -235,7 +230,9 @@ end
 --- @param anim Animation
 --- @param state boolean
 function CollateAnims:setPlayingSelect(anim, state)
-    --Add exception
+    if not self:contains(anim) then
+        error("There is no animation named" .. anim:getName() .. " in this AnimationSet")
+    end
     if state then
         queue[anim] = self.name
     else 
@@ -249,7 +246,9 @@ end
 --- @generic self
 --- @param anim Animation
 function CollateAnims:playSelect(anim)
-    --Add exception
+    if not self:contains(anim) then
+        error("There is no animation named" .. anim:getName() .. " in this AnimationSet")
+    end
     queue[anim] = self.name
 end
 
@@ -279,17 +278,41 @@ end
 
 --- Checks if any of the animations in the animation set is currently playing.
 --- If any one animation is playing, it will return `true`, and `false` otherwise.
+--- 
+--- If this AnimationSet does not contain the animation, it will return `false`
 --- @generic self
 --- @return boolean
 function CollateAnims:isPlaying() 
-    return checkPlaying(self.arr)
+    for anim in pairs(self.tbl) do
+        if anim:isPlaying() then
+            return true
+        end
+    end
+    return false
+end
+
+--- Checks if the AnimationSet contains the same animation. Where same refers to the 
+--- same pointer of the animation. 
+--- 
+--- If this AnimationSet contains the animation, it will return `true`, and `false` if
+--- otherwise.
+--- @generic self
+--- @param target Animation
+--- @return boolean
+function CollateAnims:contains(target) 
+    for anim in pairs(self.tbl) do
+        if anim == target then
+            return true
+        end
+    end
+    return false
 end
 
 --- Sets the speed of the animation set and all of it's animations.
 --- @generic self
 --- @param speed number
 function CollateAnims:setSpeed(speed)
-    for i in pairs(self.arr) do
+    for i in pairs(self.tbl) do
         i:setSpeed(speed)
     end
 end
@@ -300,7 +323,7 @@ end
 
 ---@class CollateAnims
 ---Main table containing an Animation as a key and a override boolean
----@field arr table<Animation, boolean>
+---@field tbl table<Animation, boolean>
 ---Name of the animation set
 ---@field name string 
 ---The priority of the set that can be greater than or equal to 0
