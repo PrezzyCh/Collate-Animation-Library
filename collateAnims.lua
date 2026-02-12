@@ -13,16 +13,17 @@
 -- ===================== Brought to you by: PrezzyCh =====================
 ---@version 0.1.0
 ---@module "Collate Animation Library <0.1.0>"
----
---Checkers==========================================================================================
+---@see [Github here when you are done lmao]
+--Libraries=========================================================================================
 
-local GSAnimBlend = pcall(require, "GSAnimBlend")
+local GSAnimBlend = pcall(require, "GSAnimBlend") 
 if GSAnimBlend then require("GSAnimBlend") end
 
 --Globals===========================================================================================
 
 local queue = {}
 local playingQueue = {}
+local overrideQueue = {}
 local animSetTable = {}
 local CollateAnims = {} -- Used for class shinanegans
 CollateAnims.__index = CollateAnims
@@ -34,8 +35,11 @@ CollateAnims.__index = CollateAnims
 -- reporting process!
 
 --- Debugging function that prints out the state of the overrides of an animation set.
+--- 
 --- Each override dictates whether an animation plays or not, where `true` indicates 
---- an animation will play if called and will not if `false`.
+--- an animation will play if called and will not if `false`. This is printed in the 
+--- following pattern:
+--- `name + override`
 --- @generic self
 function CollateAnims:dbgPrintTbl() 
     print("[=======".. self.name .."=====]")
@@ -46,6 +50,7 @@ function CollateAnims:dbgPrintTbl()
 end
 
 --- Debugging function that prints out all identified animation sets.
+--- @generic self
 function CollateAnims.dbgPrintAllSets() 
     print("[========All Identified Anims=====]")
     for index in pairs(animSetTable) do
@@ -54,19 +59,71 @@ function CollateAnims.dbgPrintAllSets()
     print("[=================================]")
 end
 
---- Debugging function that prints out the animation queue of animations 
+--- Debugging function that prints out the animation queues of animations 
 --- that will be checked and played.
-function CollateAnims.dbgPrintQueue()
-    print("[==============Queue==============]")
-    for index, value in pairs(queue) do
+--- 
+--- `type` defermines the type of queue checked where:
+---  0 - main queue
+---  1 - playing queue
+---  2 - override queue
+---  leaving the parameter un-filled or out of bounds, it defaults to 0
+--- @generic self
+--- @param type number
+function CollateAnims.dbgPrintQueue(type)
+    local toCheck
+    if type == 2 then 
+        toCheck = overrideQueue
+        print("[==========OverrideQueue==========]")
+    elseif type == 1 then
+        toCheck = playingQueue
+        print("[===========PlayingQueue==========]")
+    else 
+        toCheck = queue
+        print("[==============Queue==============]")
+    end
+    for index in pairs(toCheck) do
         print("|- " .. index:getName())
     end
     print("[=================================]")
 end
+
+--- Debugging function that prints out any orphaned animations (animations that
+--- are not in an AnimationSet). 
+--- @generic self
+function CollateAnims.dbgPrintOrphaned() 
+    local allAnims = animations:getAnimations() -- Index, Anim
+    local allSetAnim = {} -- Anim, __
+    local result = {} -- Index, String
+    local index = 1
+
+    for _, animSet in pairs(animSetTable) do
+        for anim in pairs(animSet.tbl) do
+            allSetAnim[anim] = true;
+        end 
+    end
+
+    for _, anim in ipairs(allAnims) do
+        if not allSetAnim[anim] then
+            result[index] = anim:getName()
+            index = index + 1
+        end
+    end
+
+    print("[==========OrphanedAnims==========]")
+    for i, value in ipairs(result) do
+        print(i .. "|-" .. value)
+    end
+    print("[=================================]")
+end
+
 -- =================================================================================================
 -- Local Helpers
 -- =================================================================================================
--- Grabs similar name animations and adds them to an animationSet tbl
+
+--- Grabs similar name animations and adds them to an animationSet tbl
+---@param name string
+---@param blendIn number
+---@param blendOut number
 local function setAnims(name, blendIn, blendOut)
     local allAnimsTbl = animations:getAnimations()
     local result = {}
@@ -88,7 +145,8 @@ local function setAnims(name, blendIn, blendOut)
     return result;
 end
 
--- Resets the priority for all anims from the inputted table
+--- Resets the priority for all anims from the inputted table
+--- @param tbl table<Animation, boolean>
 local function resetPriority(tbl)
     for key, value in pairs(tbl) do
         local animSet = animSetTable[value]
@@ -96,8 +154,10 @@ local function resetPriority(tbl)
     end
 end
 
--- Plays all animations from the inputted table, checking their values.
--- The inputted tbl must be of <Animation, string> where string is the AnimationSet name
+--- Plays all animations from the inputted table, checking their values.
+--- The inputted tbl must be of <Animation, string> where string is the AnimationSet name
+--- @param queue table<Animation, string>
+--- @param animSetTable table<string, metatable>
 local function playQueue(queue, animSetTable)
     for anim, value in pairs(queue) do
         local animSet = animSetTable[value]
@@ -107,7 +167,8 @@ local function playQueue(queue, animSetTable)
     end
 end
 
---Syncs a playing queue with animations that are currently playing
+---Syncs a playing queue with animations that are currently playing
+--- @param playingQueue table<Animation, string>
 local function syncQueue(playingQueue)
     local playing = animations:getPlaying()
     for _, anim in ipairs(playing) do
@@ -117,7 +178,10 @@ local function syncQueue(playingQueue)
     end
 end
 
--- Checks queues, if overrriden, queueA will not be changed
+--- Checks queues, if overrriden, queueA will not be changed
+--- @param queueA table<Animation, string>
+--- @param queueB table<Animation, string>
+--- @param override boolean
 local function compareQueues(queueA, queueB, override)
     for animA, valueA in pairs(queueA) do -- Contains the animations and the animation's AnimationSet name as value
         local animAName = string.match(animA:getName(), "_(.-)$") --Gets the aftward name ie. armL or armR
@@ -129,11 +193,11 @@ local function compareQueues(queueA, queueB, override)
                 local animAPriority = animSetA:getPriority()
                 local animBPriority = animSetB:getPriority()
 
-                if animAPriority > animBPriority then 
+                if animAPriority > animBPriority and not overrideQueue[animB] then 
                     animSetB.tbl[animB] = false;
                     animB:stop() -- Stops animation if it's already playing
                 end
-                if animBPriority > animAPriority then 
+                if animBPriority > animAPriority and not overrideQueue[animA] then 
                     if not override then -- Prevents queueA from being changed
                         animSetA.tbl[animA] = false;
                         animA:stop() 
@@ -153,6 +217,7 @@ end
 --- 
 --- Where if a priority is greater, then it will set the lower priority animation override to
 --- false. If priority is equal, both animations will play.
+--- @generic self
 function CollateAnims.priorityCheck() 
     resetPriority(queue)
     syncQueue(playingQueue)
@@ -161,6 +226,7 @@ function CollateAnims.priorityCheck()
     playQueue(queue, animSetTable)
     queue = {} --Empties the queue
     playingQueue = {}
+    overrideQueue = {}
 end
 
 --- Creates a new animation set with the `name`, `priority`, and `blendIn`/`blendOut` 
@@ -202,6 +268,9 @@ function CollateAnims:setPlaying(state)
         end
     else 
         self:stop()
+        for anim in pairs(self.tbl) do
+            queue[anim] = nil
+        end
     end
 end
 
@@ -218,24 +287,33 @@ end
 --- Stops the animation set.
 --- @generic self
 function CollateAnims:stop()
-    for i in pairs(self.tbl) do
-        i:stop()
+    for anim in pairs(self.tbl) do
+        anim:stop()
+        queue[anim] = nil -- Delets from queue if it is already there
     end
 end
 
 --- Plays a specific animation within an animation set. 
 --- 
 --- Until updated, the animation will continue to play.
+--- If `override` is true, the animation will play regardless
+--- of priority.
 --- @generic self
---- @param anim Animation
+--- @param animStr string
 --- @param state boolean
-function CollateAnims:setPlayingSelect(anim, state)
-    if not self:contains(anim) then
-        error("There is no animation named" .. anim:getName() .. " in this AnimationSet")
+--- @param override boolean
+function CollateAnims:setPlayingSelect(animStr, state, override)
+    local anim = self:find(animStr)
+    if not anim then
+        error("There is no animation named" .. animStr .. " in this AnimationSet")
     end
     if state then
         queue[anim] = self.name
+        if override then
+            overrideQueue[anim] = true
+        end
     else 
+        queue[anim] = nil
         anim:stop()
     end
 end
@@ -243,13 +321,20 @@ end
 --- Plays a specific animation within an animation set.
 --- 
 --- The animation will play until the end of the animation.
+--- If `override` is true, the animation will play regardless
+--- of priority.
 --- @generic self
---- @param anim Animation
-function CollateAnims:playSelect(anim)
-    if not self:contains(anim) then
-        error("There is no animation named" .. anim:getName() .. " in this AnimationSet")
+--- @param animStr string
+--- @param override boolean 
+function CollateAnims:playSelect(animStr, override)
+    local anim = self:find(animStr)
+    if not anim then
+        error("There is no animation named" .. animStr .. " in this AnimationSet")
     end
     queue[anim] = self.name
+    if override then
+        overrideQueue[anim] = true
+    end
 end
 
 
@@ -291,21 +376,20 @@ function CollateAnims:isPlaying()
     return false
 end
 
---- Checks if the AnimationSet contains the same animation. Where same refers to the 
---- same pointer of the animation. 
+--- Retrieves the animation in the AnimationSet if it contains the same name.
 --- 
---- If this AnimationSet contains the animation, it will return `true`, and `false` if
+--- If this AnimationSet contains the animation, it will return the aniamtion, and `nil` if
 --- otherwise.
 --- @generic self
---- @param target Animation
---- @return boolean
-function CollateAnims:contains(target) 
+--- @param target string
+--- @return Animation?
+function CollateAnims:find(target) 
     for anim in pairs(self.tbl) do
-        if anim == target then
-            return true
+        if anim:getName() == target then
+            return anim
         end
     end
-    return false
+    return nil
 end
 
 --- Sets the speed of the animation set and all of it's animations.
@@ -332,4 +416,9 @@ end
 ---@field animSetTable table<string, metatable>
 ---Contains the animation as the key and the string of the AnimationSet pertaining to the animation queued to play.
 ---@field queue table<Animation, string>
+---The animations that will play stored as a queue.
+---@field overrideQueue table<Animation, _>
+---Contains the animation as the key and the string of the AnimationSet pertaining to any playing animations as a queue.
+---@field playingQueue table<Animation, string>
+
 return CollateAnims
