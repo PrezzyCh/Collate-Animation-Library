@@ -1,5 +1,5 @@
 # Collate Animation Library <V0.1.0>
-A simple solution for subdivided animations allowing for ease of call and compatability with GS Animation Blend.
+A simple solution for subdivided animations allowing for ease of call, priorities, blending.
 > [!NOTE]
 > This script is in beta and is under active development and testing. Please submit any bug reports if you find any bugs, thx!
 
@@ -24,7 +24,7 @@ If you want to add any animations, use the `:newSet()` function to add the funct
 a string in the form `set_name-[extra stuff]-body_part` where `set_name` is the overall name of the group and the body part that each animation maps to. 
 > [!Warning]
 > This naming convention is VERY IMPORTANT to grouping of the animations and it is case sensitive in order to compare each AnimationSet's assigned body part
->  eg: running_armL is of a lower priority than attack_armL so attack_armL plays.
+>  eg: running_armL is of a lower priority than attack_armL so attack_armL plays and running_armL does not.
 > There are tools you may use to identify orphaned animations.
 
 It also accepts a priority that will determine whether the body part within an AnimationSet plays or not; and blendIn blendOut parameters used in GS Animation Blend 
