@@ -13,7 +13,7 @@
 -- ===================== Brought to you by: PrezzyCh =====================
 ---@version 0.1.0
 ---@module "Collate Animation Library <0.1.0>"
----@see [Github here when you are done lmao]
+---@see PrezzyCh https://github.com/PrezzyCh/Collate-Animation-Library
 --Libraries=========================================================================================
 
 local GSAnimBlend = pcall(require, "GSAnimBlend") 
@@ -156,9 +156,7 @@ end
 
 --- Plays all animations from the inputted table, checking their values.
 --- The inputted tbl must be of <Animation, string> where string is the AnimationSet name
---- @param queue table<Animation, string>
---- @param animSetTable table<string, metatable>
-local function playQueue(queue, animSetTable)
+local function playQueue()
     for anim, value in pairs(queue) do
         local animSet = animSetTable[value]
         if animSet.tbl[anim] then
@@ -168,8 +166,7 @@ local function playQueue(queue, animSetTable)
 end
 
 ---Syncs a playing queue with animations that are currently playing
---- @param playingQueue table<Animation, string>
-local function syncQueue(playingQueue)
+local function syncQueue()
     local playing = animations:getPlaying()
     for _, anim in ipairs(playing) do
         if playingQueue[anim] == nil then
