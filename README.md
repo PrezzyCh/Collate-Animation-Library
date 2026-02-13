@@ -1,5 +1,5 @@
 # Collate Animation Library <V0.1.0>
-A simple solution for subdivided animations allowing for ease of call, priorities, blending.
+A simple solution for subdivided animations allowing for ease of call, priorities, and blending.
 > [!NOTE]
 > This script is in beta and is under active development and testing. Please submit any bug reports if you find any bugs, thx!
 
