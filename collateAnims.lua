@@ -11,8 +11,8 @@
 -- ▩▩     ▩▩    ▩  ▩▩      ▩▩     ▩|  |▩  |▩   ▩▩   ▩|  ▩  ▩▩  ▩
 -- ▩▩▩▩▩ ▩▩▩▩▩  ▩▩▩▩▩ ▩▩▩▩▩ ▩▩▩▩▩  ▩▩   ▩▩ ▩▩▩ ▩       ▩
 -- ===================== Brought to you by: PrezzyCh =====================
----@version 0.1.0
----@module "Collate Animation Library <0.1.0>"
+---@version 0.2.0
+---@module "Collate Animation Library <0.2.0>"
 ---@see PrezzyCh https://github.com/PrezzyCh/Collate-Animation-Library
 --Libraries=========================================================================================
 
@@ -122,26 +122,16 @@ end
 
 --- Grabs similar name animations and adds them to an animationSet tbl
 ---@param name string
----@param blendIn number
----@param blendOut number
-local function setAnims(name, blendIn, blendOut)
+local function setAnims(name)
     local allAnimsTbl = animations:getAnimations()
     local result = {}
     
     --gets all animations, if it matches the set names, add it to the result.
-    for i, value in ipairs(allAnimsTbl) do
+    for _, value in ipairs(allAnimsTbl) do
         if string.match(value:getName(), "^" .. name .. "_") then
             result[value] = true
-
-            --Sets blend time to each animation that matches.
-            if GSAnimBlend then
-                blendIn = blendIn or 0
-                blendOut = blendOut or 0  
-                value:setBlendTime(blendIn, blendOut)
-            end
         end
     end
-
     return result;
 end
 
@@ -230,23 +220,34 @@ end
 --- for GSAnimBlend blending.
 --- 
 --- Default value for `priority` is 0
+--- 
+--- Throws an error if GSAnimBlend library is not present and `blendIn`/`blendOut` is filled. 
 --- @generic self
 --- @param name string
---- @param priority number
---- @param blendIn number
---- @param blendOut number
+--- @param priority? number
+--- @param blendIn? number
+--- @param blendOut? number
+--- @param curve? string
 --- @return self
-function CollateAnims:newSet(name, priority, blendIn, blendOut)
+function CollateAnims:newSet(name, priority, blendIn, blendOut, curve)
     priority = priority or 0
-    if not GSAnimBlend and (blendIn or blendOut) then
+    if not GSAnimBlend and (blendIn or blendOut or curve) then
         error("GSAnim is not loaded, but blendIn or blendOut values have been filled!")
     end
     local metaTable = setmetatable({name = name, -- String name of set
                                     priority = priority, -- Int priority of set
-                                    tbl = setAnims(name, blendIn, blendOut)}, -- All anims of this 
+                                    tbl = setAnims(name)}, -- All anims of this 
                                                     --set, where [Animation key, Boolean override] 
                                     self)
     animSetTable[name] = metaTable
+
+    --Sets GSAnimBlend stuff
+    if blendIn or blendOut then
+        metaTable:setBlendTime(blendIn, blendOut)
+    end
+    if curve then
+        metaTable:setBlendCurve(curve)
+    end
     return metaTable
 end
 
@@ -298,7 +299,7 @@ end
 --- @generic self
 --- @param animStr string
 --- @param state boolean
---- @param override boolean
+--- @param override? boolean
 function CollateAnims:setPlayingSelect(animStr, state, override)
     local anim = self:find(animStr)
     if not anim then
@@ -322,7 +323,7 @@ end
 --- of priority.
 --- @generic self
 --- @param animStr string
---- @param override boolean 
+--- @param override? boolean 
 function CollateAnims:playSelect(animStr, override)
     local anim = self:find(animStr)
     if not anim then
@@ -395,6 +396,43 @@ end
 function CollateAnims:setSpeed(speed)
     for i in pairs(self.tbl) do
         i:setSpeed(speed)
+    end
+end
+
+--- Sets the blend time for the animationSet.
+--- Note: This uses the GSAnimBlend library, refer to https://github.com/GrandpaScout/GSAnimBlend for
+--- references on setting blend time.  
+--- 
+--- Throws an error if GSAnimBlend library is not present and this method is used. 
+---  @generic self
+---  @param blendIn number
+---  @param blendOut? number
+function CollateAnims:setBlendTime(blendIn, blendOut)
+    if not GSAnimBlend then
+        error("GSAnim is not loaded, but blendIn or blendOut values have been filled!")
+    end
+    local tbl = self.tbl
+    for key in pairs(tbl) do
+        blendIn = blendIn or 0
+        blendOut = blendOut or 0  
+        key:setBlendTime(blendIn, blendOut)
+    end
+end
+
+--- Sets the blend curve for the animationSet.
+--- Note: This uses the GSAnimBlend library, refer to https://github.com/GrandpaScout/GSAnimBlend for
+--- references on setting curve.  
+--- 
+--- Throws an error if GSAnimBlend library is not present and this method is used. 
+---  @generic self
+---  @param curve string
+function CollateAnims:setBlendCurve(curve)
+    if not GSAnimBlend then
+        error("GSAnim is not loaded, but curve value have been filled!")
+    end
+    local tbl = self.tbl
+    for key in pairs(tbl) do
+        key:setBlendCurve(curve)
     end
 end
 
