@@ -88,14 +88,18 @@ override.
 Where if a priority is greater, then it will set the lower priority animation override to
 false. If priority is equal, both animations will play.
 
-`CollateAnims:newSet(name, priority, blendIn, blendOut)`  
+`CollateAnims:newSet(name, priority, blendIn, blendOut, curve)`  
 `name string`  
 `priority number`  
 `blendIn number`  
 `blendOut number`  
-Creates a new animation set with the `name`, `priority`, and `blendIn`/`blendOut` 
-for GSAnimBlend blending.  
-Default value for `priority` is 0
+`curve string`  
+--- Creates a new animation set with the `name`, `priority` and `blendIn`/`blendOut` and `curve`
+--- for GSAnimBlend blending.
+--- 
+--- Default value for `priority` is 0
+--- 
+--- Throws an error if GSAnimBlend library is not present and `blendIn`/`blendOut` or 'curve' is filled. 
 
 ### Animation Functions
 
@@ -159,3 +163,18 @@ otherwise.
 `CollateAnims:setSpeed(speed)`  
 `speed number`  
 Sets the speed of the animation set and all of it's animations.
+
+`CollateAnims:setBlendTime(blendIn, blendOut)`  
+`blendIn number`  
+`blendOut number`
+Sets the blend time for the animationSet.
+Note: This uses the GSAnimBlend library, refer to https://github.com/GrandpaScout/GSAnimBlend for
+references on setting blend time.  
+Throws an error if GSAnimBlend library is not present and this method is used. 
+
+`CollateAnims:setBlendCurve(curve)`  
+`curve string`  
+Sets the blend curve for the animationSet.
+Note: This uses the GSAnimBlend library, refer to https://github.com/GrandpaScout/GSAnimBlend for
+references on setting curve.  
+Throws an error if GSAnimBlend library is not present and this method is used. 

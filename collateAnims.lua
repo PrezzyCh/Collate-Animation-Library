@@ -216,12 +216,12 @@ function CollateAnims.priorityCheck()
     overrideQueue = {}
 end
 
---- Creates a new animation set with the `name`, `priority`, and `blendIn`/`blendOut` 
+--- Creates a new animation set with the `name`, `priority` and `blendIn`/`blendOut` and `curve`
 --- for GSAnimBlend blending.
 --- 
 --- Default value for `priority` is 0
 --- 
---- Throws an error if GSAnimBlend library is not present and `blendIn`/`blendOut` is filled. 
+--- Throws an error if GSAnimBlend library is not present and `blendIn`/`blendOut` or 'curve' is filled. 
 --- @generic self
 --- @param name string
 --- @param priority? number
