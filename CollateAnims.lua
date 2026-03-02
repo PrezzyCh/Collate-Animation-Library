@@ -11,8 +11,8 @@
 -- ▩▩     ▩▩    ▩  ▩▩      ▩▩     ▩|  |▩  |▩   ▩▩   ▩|  ▩  ▩▩  ▩
 -- ▩▩▩▩▩ ▩▩▩▩▩  ▩▩▩▩▩ ▩▩▩▩▩ ▩▩▩▩▩  ▩▩   ▩▩ ▩▩▩ ▩       ▩
 -- ===================== Brought to you by: PrezzyCh =====================
----@version 0.2.0
----@module "Collate Animation Library <0.2.0>"
+---@version 0.2.1
+---@module "Collate Animation Library <0.2.1>"
 ---@see PrezzyCh https://github.com/PrezzyCh/Collate-Animation-Library
 --Libraries=========================================================================================
 
