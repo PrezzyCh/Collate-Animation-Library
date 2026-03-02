@@ -171,15 +171,14 @@ end
 --- @param override boolean
 local function compareQueues(queueA, queueB, override)
     for animA, valueA in pairs(queueA) do -- Contains the animations and the animation's AnimationSet name as value
-        local animAName = string.match(animA:getName(), "_(.-)$") --Gets the aftward name ie. armL or armR
+        local animAName = string.match(animA:getName(), "_([^_]+)$") --Gets the aftward name ie. armL or armR
         for animB, valueB in pairs(queueB) do
-            local animBName = string.match(animB:getName(), "_(.-)$")
-            if valueA ~= valueB and animAName == animBName then
-                local animSetA = animSetTable[valueA] --Gets the metatable thus the set itself
-                local animSetB = animSetTable[valueB]
+            local animBName = string.match(animB:getName(), "_([^_]+)$")
+            local animSetA = animSetTable[valueA] --Gets the metatable thus the set itself
+            local animSetB = animSetTable[valueB]
+            if valueA ~= valueB and animAName == animBName and animSetA and animSetB  then
                 local animAPriority = animSetA:getPriority()
                 local animBPriority = animSetB:getPriority()
-
                 if animAPriority > animBPriority and not overrideQueue[animB] then 
                     animSetB.tbl[animB] = false;
                     animB:stop() -- Stops animation if it's already playing
@@ -216,12 +215,12 @@ function CollateAnims.priorityCheck()
     overrideQueue = {}
 end
 
---- Creates a new animation set with the `name`, `priority` and `blendIn`/`blendOut` and `curve`
+--- Creates a new animation set with the `name`, `priority`, and `blendIn`/`blendOut` 
 --- for GSAnimBlend blending.
 --- 
 --- Default value for `priority` is 0
 --- 
---- Throws an error if GSAnimBlend library is not present and `blendIn`/`blendOut` or 'curve' is filled. 
+--- Throws an error if GSAnimBlend library is not present and `blendIn`/`blendOut` is filled. 
 --- @generic self
 --- @param name string
 --- @param priority? number
