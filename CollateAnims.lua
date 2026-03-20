@@ -11,8 +11,8 @@
 -- ▩▩     ▩▩    ▩  ▩▩      ▩▩     ▩|  |▩  |▩   ▩▩   ▩|  ▩  ▩▩  ▩
 -- ▩▩▩▩▩ ▩▩▩▩▩  ▩▩▩▩▩ ▩▩▩▩▩ ▩▩▩▩▩  ▩▩   ▩▩ ▩▩▩ ▩       ▩
 -- ===================== Brought to you by: PrezzyCh =====================
----@version 0.2.1
----@module "Collate Animation Library <0.2.1>"
+---@version 0.2.2
+---@module "Collate Animation Library <0.2.2>"
 ---@see PrezzyCh https://github.com/PrezzyCh/Collate-Animation-Library
 --Libraries=========================================================================================
 
@@ -288,6 +288,18 @@ function CollateAnims:stop()
         anim:stop()
         queue[anim] = nil -- Delets from queue if it is already there
     end
+end
+
+--- Stops a select animation from playing
+--- @generic self
+--- @param animStr string 
+function CollateAnims:stopSelect(animStr)
+    local anim = self:find(animStr)
+    if not anim then
+        error("There is no animation named" .. animStr .. " in this AnimationSet")
+    end
+    anim:stop()
+    queue[anim] = nil
 end
 
 --- Plays a specific animation within an animation set. 

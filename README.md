@@ -1,4 +1,4 @@
-# Collate Animation Library <V0.2.0>
+# Collate Animation Library <V0.2.2>
 A simple solution for subdivided animations allowing for ease of call, priorities, and blending.
 > [!NOTE]
 > This script is in beta and is under active development and testing. Please submit any bug reports if you find any bugs, thx!
@@ -115,6 +115,10 @@ The animation will play until the end of the animation.
 
 `CollateAnims:stop()`  
 Stops the animation set.
+
+`CollateAnims:stopSelect(animStr)`
+`animStr string`  
+Stops a select animation from playing.
 
 `CollateAnims:setPlayingSelect(animStr, state, override)`  
 `animStr string`  
